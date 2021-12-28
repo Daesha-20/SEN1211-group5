@@ -196,65 +196,64 @@ end
 
 
 
-to num-return-bottles-families [
+to num-return-bottles-families
   set num-return-bottles-families sum [ f-consumption-small-bottle * f-increase-knowledge ] of families
-]
+
 end
 
-to num-return-bottles-couples [
+to num-return-bottles-couples
   set num-return-bottles-couples sum[ c-consumption-small-bottle * c-increase-knowledge ] of couples
-]
+
 end
 
-to num-return-bottles-singles [
+to num-return-bottles-singles
   set num-return-bottles-singles sum[ s-consumption-small-bottle * s-increase-knowledge ] of singles
-]
+
 end
 
-to R-capacity-incease [
+to R-capacity-incease
   set R-capacity-incease R-capacity + recycling-investment * recycling-changing-ratio;(1 euro = 0.1 bottles) ;recycling-changing-rate will be a fixed number
-]
+
 end
 
-to C-capacity-incease [
+to C-capacity-incease
   set C-capacity-incease C-capacity + collection-investment * collection-changing-ratio ;collection-changing-rate will be a fixed number
-]
+
 end
 
-to num-colletion-bottles [
+to num-colletion-bottles
   set num-return-bottles num-return-bottles-families + num-return-bottles-couples + num-return-bottles-singles
   ifelse num-return-bottles > collection-capacity [
     set num-colletion-bottles collection-capacity
   ]
   [ set num-colletion-bottles num-return-bottles
   ]
-]
+
 end
 
 
-to num-recieve-bottles [
-  ifelse num-colletion-bottles > recycling-capacity [
-    set num-recieve-bottles recycling-capacity
+to num-recieve-bottles
+  ifelse num-colletion-bottles > recycling-capacity
+  [  set num-recieve-bottles recycling-capacity
   ]
   [ set num-recieve-bottles num-colletion-bottles
   ]
-]
+
 end
 
 
-to rate-returning [
+to rate-returning
   set num-consume-bottles sum [f-consumption-small-bottle] of families + sum [c-consumption-small-bottle] of couples + sum [s-consumption-small-bottle] of singles
   set rate-returing num-return-bottles / num-consume-bottles
-]
+
 end
 
 
-to rate-recycling [
+to rate-recycling
 
   set rate-recycling num-recieve-bottles / num-return-bottles
-]
-end
 
+end
 
 
 
