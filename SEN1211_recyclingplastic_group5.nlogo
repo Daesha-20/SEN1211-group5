@@ -1,15 +1,17 @@
 globals
 [
-  max-bottles
+  num-consume-bottles
+  num-collection-bottles
   num-return-bottles-families
   num-return-bottles-couples
   num-return-bottles-singles
-  num-collection-bottles
-  num-return-bottles
-  num-consume-bottles
+  fam-consume
+  cpl-consume
+  sgl-consume
   rate-returning
-  num-recieve-bottles
   rate-recycling
+
+
 ] ;there is a maximum quantity of bottles that can be consumed in the market,
 ;set this in the global environment, so we can discard the producer agent,
 ;the consumption of bottles in total from 3 breeds cannot exceed the maximum numbers of bottles
@@ -28,10 +30,9 @@ families-own
   f-knowledge-increase-perc
   f-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   f-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
-  f-consumption-small-bottle       ; how many small bottles a turtle consumes
-  ;accessibility-collection-point ; how easily a turtle can access consumption points
+  f-consumption-small-bottles       ; how many small bottles a turtle consumes
+  f-num-bottles
   f-small-bottle-return-perc       ; percentage of small bottles returned by turtle
-
   f-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
 
@@ -42,10 +43,9 @@ couples-own
   c-knowledge-increase-perc
   c-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   c-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
-  c-consumption-small-bottle       ; how many small bottles a turtle consumes
-  ;accessibility-collection-point ; how easily a turtle can access consumption points
+  c-consumption-small-bottles       ; how many small bottles a turtle consumes
+  c-num-bottles
   c-small-bottle-return-perc       ; percentage of small bottles returned by turtle
-
   c-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
 
@@ -55,10 +55,9 @@ singles-own
   s-knowledge-increase-perc
   s-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   s-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
-  s-consumption-small-bottle       ; how many small bottles a turtle consumes
- ;accessibility-collection-point ; how easily a turtle can access consumption points
+  s-consumption-small-bottles       ; how many small bottles a turtle consumes
+  s-num-bottles
   s-small-bottle-return-perc       ; percentage of small bottles returned by turtle
-
   s-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
 
@@ -72,12 +71,19 @@ municipalities-own[
 recycling-companies-own[
   recycling-capacity; how many bottles can a recycling company recieve
   recycling-investment
+  num-recieve-bottles
+  num-recycle-bottles
+  sum-recycle
+  total-recycle
+
 ]
 
 collection-points-own[
   collection-capacity; how many bottles can a collection point collect
   collection-investment
-
+  num-return-bottles
+  sum-collection
+  total-collection
 ]
 
 ;;;
@@ -87,28 +93,25 @@ collection-points-own[
 to setup
   clear-all
   ;; set global variables to appropriate consumer types
-   create-families initial-number-families [
-    set f-consumption-small-bottle [1 8] ; randomization of small bottle consumptiom
+   create-families population * initial-perc-families [
     set f-base-knowledge ["low" "high"] ; randomization of yes/no of acceptance,
     set f-acceptance-of-campaign ["yes" "no"]
     ;set accessibility-collection-point [0 1]
     set shape "person"
-    set size 1
+    set size 1.5
     move-to one-of patches
     set color green
   ]
-   create-couples initial-number-couples [
-    set c-consumption-small-bottle [1 5] ; randomization of small bottle consumptioms
+   create-couples population * initial-perc-couples [
     set c-base-knowledge ["low" "high"] ; randomization of high/ low knowledge,
     set c-acceptance-of-campaign ["yes" "no"]; randomization of yes/no of acceptance
     ;set accessibility-collection-point [0 1]
     set shape "person"
-    set size 1
+    set size 1.2
     move-to one-of patches
     set color blue
   ]
-   create-singles initial-number-singles [
-    set s-consumption-small-bottle [1 4] ; randomization of small bottle consumptiom
+   create-singles population * initial-perc-singles [
     set s-base-knowledge ["low" "high"] ; randomization of high/ low knowledge,
     set s-acceptance-of-campaign ["yes" "no"]; randomization of yes/no of acceptance
     ;set accessibility-collection-point [0 1]
@@ -117,23 +120,30 @@ to setup
     move-to one-of patches
     set color red
   ]
+
   create-recycling-companies initial-num-recycling-companies[
+    set sum-recycle [0]
     set recycling-capacity R-capacity ; R-capacity is a fixed number
     set shape  "house"
     set color white
     set size 3  ; easier to see
-    setxy random-xcor random-ycor ;
-
   ]
 
   create-collection-points initial-num-collection-points[
+    set sum-collection [0]
     set collection-capacity C-capacity ; C-capacity is a fixed number
     set shape  "house"
     set color yellow
     set size 2  ; easier to see
-    setxy random-xcor random-ycor ;
   ]
 
+  set fam-consume [0]
+  set cpl-consume [0]
+  set sgl-consume [0]
+
+
+  layout-circle (sort-on [who] recycling-companies) 5
+  layout-circle (sort-on [who] collection-points) 12
 
   if model-version = "yes-policy" [
     ask municipalities [
@@ -183,33 +193,43 @@ to go
   ; if not any? turtles [ stop ]
     ask families [
       move
-
+      consume-bottles
     ]
 
     ask couples [
       move
-
+      consume-bottles
     ]
 
     ask singles [
       move
-
+      consume-bottles
       ]
+
 
     ask collection-points [
       collect-bottles
       calculate-collection-bottles
       calculate-rate-returning
-
     ]
 
+
+
+
+  if ticks mod 4 = 0 [
     ask recycling-companies [
-      ;recieve-bottles
-      calculate-recieve-bottles
+      recycle-bottles
+      calculate-recycle-bottles
       calculate-rate-recycling
-
     ]
-update-plots
+  ]
+
+  if ticks mod 52 = 0 [
+    reset-ticks
+  ]
+
+
+update-plots; auto-plot-on ????
 tick
 end
 
@@ -220,6 +240,22 @@ to move
   fd 1
 end
 
+to consume-bottles
+  ask families [
+    set f-consumption-small-bottles [10 20] ; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set fam-consume lput f-consumption-small-bottles fam-consume
+  ]
+
+  ask couples [
+    set c-consumption-small-bottles [5 15] ; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set cpl-consume lput c-consumption-small-bottles cpl-consume
+  ]
+
+  ask singles [
+    set s-consumption-small-bottles [10 15] ; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set sgl-consume lput s-consumption-small-bottles sgl-consume
+  ]
+end
 
 to collect-bottles  ; wolf procedure
   ask families[
@@ -233,7 +269,6 @@ to collect-bottles  ; wolf procedure
   ask couples [
     let cpl one-of couples-here
     if cpl != nobody [
-      ask cpl [ die ]
       calculate-return-bottles-couples
   ]
   ]
@@ -241,20 +276,11 @@ to collect-bottles  ; wolf procedure
   ask singles [
     let sgl one-of singles-here
     if sgl != nobody [
-      ask sgl [ die ]
       calculate-return-bottles-singles
   ]
   ]
   ]
-
 end
-
-to reproduce-families
-  if count families initial-number-families [
-    hatch 1 [ rt random-float 360 fd 1 ]   ; hatch an offspring and move it forward 1 step
-  ]
-end
-
 
 
 to calculate-return-bottles-families
@@ -272,20 +298,24 @@ to calculate-return-bottles-families
           ]
         ]
 
-
        if f-acceptance-of-campaign = "no" [
        set f-increase-knowledge f-base-knowledge
       ]
 
-    set num-return-bottles-families sum [ f-consumption-small-bottle * f-increase-knowledge ] of families
+    set num-return-bottles-families sum [ f-consumption-small-bottles * f-increase-knowledge ] of families
       ]
    ]
   if policy-of-recycling-campaign = "no"[
     ask families[
-        set num-return-bottles-families sum [ f-consumption-small-bottle * f-base-knowledge ] of families
+        set num-return-bottles-families sum [ f-consumption-small-bottles * f-base-knowledge ] of families
       ]
     ]
   ]
+
+  ask families [
+    set f-num-bottles 0
+  ]
+
 end
 
 to calculate-return-bottles-couples
@@ -306,15 +336,19 @@ to calculate-return-bottles-couples
        if c-acceptance-of-campaign = "no" [
           set c-increase-knowledge c-base-knowledge
           ]
-       set num-return-bottles-couples sum [ c-consumption-small-bottle * c-increase-knowledge ] of couples
+       set num-return-bottles-couples sum [ c-consumption-small-bottles * c-increase-knowledge ] of couples
       ]
     ]
     if policy-of-recycling-campaign = "no"[
        ask couples [
-          set num-return-bottles-couples sum [ c-consumption-small-bottle * c-base-knowledge ] of couples
+          set num-return-bottles-couples sum [ c-consumption-small-bottles * c-base-knowledge ] of couples
         ]
      ]
     ]
+
+  ask couples [
+    set c-num-bottles 0
+  ]
 end
 
 to calculate-return-bottles-singles
@@ -336,66 +370,94 @@ to calculate-return-bottles-singles
        if s-acceptance-of-campaign = "no" [
           set s-increase-knowledge s-base-knowledge
           ]
-       set num-return-bottles-singles sum [ s-consumption-small-bottle * s-increase-knowledge ] of singles
+       set num-return-bottles-singles sum [ s-consumption-small-bottles * s-increase-knowledge ] of singles
       ]
     if policy-of-recycling-campaign = "no"[
        ask singles[
-          set num-return-bottles-singles sum [ s-consumption-small-bottle * s-base-knowledge ] of singles
+          set num-return-bottles-singles sum [ s-consumption-small-bottles * s-base-knowledge ] of singles
         ]
       ]
     ]
   ]
-end
 
+  ask singles [
+    set s-num-bottles 0
+  ]
+end
 
 
 
 to calculate-collection-bottles
-  set num-return-bottles num-return-bottles-families + num-return-bottles-couples + num-return-bottles-singles
-  if num-return-bottles >= collection-capacity [
-    set num-collection-bottles collection-capacity
-  ]
-  if num-return-bottles < collection-capacity[
-    set num-collection-bottles num-return-bottles
-  ]
-
-end
-
-
-to calculate-recieve-bottles
-  if num-collection-bottles >= recycling-capacity[
-    set num-recieve-bottles recycling-capacity
-  ]
-  if num-collection-bottles < recycling-capacity[
-    set num-recieve-bottles num-collection-bottles
+  ask collection-points [
+    set num-return-bottles num-return-bottles-families + num-return-bottles-couples + num-return-bottles-singles
+      if num-return-bottles >= collection-capacity [
+        set num-collection-bottles collection-capacity
+        user-message "reached collection capacity"
+        ]
+      if num-return-bottles < collection-capacity [
+        set num-collection-bottles num-return-bottles
+        ]
+    set sum-collection lput num-collection-bottles sum-collection
   ]
 end
 
+
+to recycle-bottles
+  ask recycling-companies [
+    set num-recieve-bottles num-collection-bottles * (1 - loss-rate) ;manually setup loss-rate, loss during transportation and unexpected accidents
+  ]
+end
+
+
+to calculate-recycle-bottles
+  ask recycling-companies [
+    if num-recieve-bottles >= recycling-capacity [
+      set num-recycle-bottles recycling-capacity
+      user-message "reached recycling capacity"
+       ]
+    if num-recieve-bottles < recycling-capacity [
+      set num-recycle-bottles num-recieve-bottles
+      ]
+    set sum-recycle lput num-recycle-bottles sum-recycle
+  ]
+end
+
+to calculate-total-collection-bottles
+  ask collection-points [
+    set total-collection sum sum-collection
+  ]
+end
+
+to calculate-total-recycling-bottles
+  ask recycling-companies [
+    set total-recycle sum sum-recycle
+  ]
+end
 
 to calculate-rate-returning
-  set num-consume-bottles sum [f-consumption-small-bottle] of families + sum [c-consumption-small-bottle] of couples + sum [s-consumption-small-bottle] of singles
+  set num-consume-bottles sum fam-consume + sum fam-consume + sum fam-consume
   if num-consume-bottles = 0 [
-    set rate-returning 0
-  ]
-  if num-consume-bottles > 0[
-    set rate-returning num-return-bottles / num-consume-bottles
-  ]
+      set rate-returning 0
+       ]
+  if num-consume-bottles > 0 and num-consume-bottles <= max-bottles [
+      set rate-returning num-return-bottles / num-consume-bottles
+      ]
 
+  if num-consume-bottles > max-bottles [
+    user-message "consumption exceedes the market capacity" stop
+  ]
 end
 
 
 to calculate-rate-recycling
-  if num-return-bottles = 0 [
-    set rate-recycling 0
-  ]
-  if num-return-bottles > 0 [
-    set rate-recycling num-recieve-bottles / num-return-bottles
-  ]
+    if num-recycle-bottles = 0 [
+      set rate-recycling 0
+      ]
+    if num-recycle-bottles > 0 [
+      set rate-recycling num-recycle-bottles / num-collection-bottles
+      ]
 
 end
-
-
-
 
 
 
@@ -408,13 +470,13 @@ end
 
 @#$#@#$#@
 GRAPHICS-WINDOW
-422
+387
 10
-859
-448
+893
+517
 -1
 -1
-13.0
+15.1
 1
 10
 1
@@ -435,70 +497,70 @@ ticks
 30.0
 
 SLIDER
-19
-25
-297
-58
-initial-number-families
-initial-number-families
+18
+84
+245
+117
+initial-perc-families
+initial-perc-families
+0
 1
-1000
-101.0
-10
+0.3
+0.01
 1
-family
+*100 %
 HORIZONTAL
 
 SLIDER
-22
-81
-293
-114
-initial-number-couples
-initial-number-couples
+18
+130
+245
+163
+initial-perc-couples
+initial-perc-couples
+0
 1
-1000
-181.0
-10
+0.3
+0.01
 1
-couple
+*100 %
 HORIZONTAL
 
 SLIDER
-25
-138
-275
-171
-initial-number-singles
-initial-number-singles
+18
+176
+245
+209
+initial-perc-singles
+initial-perc-singles
+0
 1
-1000
-301.0
-10
+0.4
+0.01
 1
-single
+*100 %
 HORIZONTAL
 
 SLIDER
-30
-205
-335
-238
+20
+237
+187
+270
 initial-num-recycling-companies
 initial-num-recycling-companies
 1
 3
-3.0
+2.0
 1
 1
 company
 HORIZONTAL
 
 SLIDER
-31
-255
-205
-288
+201
+237
+370
+270
 R-capacity
 R-capacity
 1
@@ -510,25 +572,25 @@ bottles
 HORIZONTAL
 
 SLIDER
-38
-312
-406
-345
+19
+365
+188
+398
 initial-num-collection-points
 initial-num-collection-points
 1
 9
-9.0
+8.0
 1
 1
-collection-point
+point
 HORIZONTAL
 
 SLIDER
-38
-366
-212
-399
+201
+365
+372
+398
 C-capacity
 C-capacity
 1
@@ -540,20 +602,20 @@ bottles
 HORIZONTAL
 
 CHOOSER
-908
-35
-1046
-80
+18
+11
+370
+56
 model-version
 model-version
 "yes-policy" "no-policy"
 1
 
 INPUTBOX
-1082
-10
-1237
-70
+256
+479
+372
+599
 total-budget
 100.0
 1
@@ -561,55 +623,55 @@ total-budget
 Number
 
 SLIDER
-31
-422
-295
-455
+19
+479
+244
+512
 fraction-of-campaign
 fraction-of-campaign
 0
 1.00
-0.01
+0.1
 0.01
 1
-percentage
+*100 %
 HORIZONTAL
 
 SLIDER
-33
-481
-311
-514
+19
+566
+246
+599
 fraction-of-technology
 fraction-of-technology
 0
 1.00
-0.01
+0.11
 0.01
 1
-percentage
+*100 %
 HORIZONTAL
 
 SLIDER
-46
-544
-324
-577
+19
+523
+245
+556
 fraction-of-collection
 fraction-of-collection
 0
 1.00
-0.01
+0.15
 0.01
 1
-percentage
+*100 %
 HORIZONTAL
 
 INPUTBOX
-1099
-149
-1254
-209
+201
+275
+371
+335
 recycling-changing-ratio
 1.0
 1
@@ -617,21 +679,21 @@ recycling-changing-ratio
 Number
 
 INPUTBOX
-1116
-246
-1271
-306
+201
+405
+372
+465
 collection-changing-ratio
-1.0
+2.0
 1
 0
 Number
 
 BUTTON
-938
-308
-1004
-341
+515
+543
+615
+593
 NIL
 setup
 NIL
@@ -645,10 +707,10 @@ NIL
 1
 
 BUTTON
-943
-385
-1006
-418
+649
+542
+744
+593
 NIL
 go
 T
@@ -662,10 +724,10 @@ NIL
 1
 
 PLOT
-1030
-393
-1324
-633
+906
+29
+1154
+238
 num-return-bottles
 steps
 num-return-bottles
@@ -677,7 +739,90 @@ true
 false
 "" ""
 PENS
-"num-return-bottles" 1.0 0 -16777216 true "" "plot num-return-bottles"
+"num-return-bottles" 1.0 0 -16777216 true "" "ask collection-points plot num-return-bottles"
+
+INPUTBOX
+20
+275
+188
+335
+loss-rate
+0.01
+1
+0
+Number
+
+INPUTBOX
+252
+149
+369
+209
+population
+500.0
+1
+0
+Number
+
+INPUTBOX
+251
+85
+369
+145
+max-bottles
+1.0E7
+1
+0
+Number
+
+TEXTBOX
+20
+62
+170
+80
+Consumers SetUp
+14
+0.0
+1
+
+TEXTBOX
+20
+217
+242
+251
+Recycling Companies SetUp
+14
+0.0
+1
+
+TEXTBOX
+21
+344
+281
+372
+Collection Points SetUp
+14
+0.0
+1
+
+TEXTBOX
+22
+459
+172
+477
+Budget SetUp
+14
+0.0
+1
+
+TEXTBOX
+907
+10
+1057
+28
+Plots
+14
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
