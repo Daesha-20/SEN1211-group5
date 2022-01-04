@@ -231,7 +231,7 @@ to go
 
 
 update-plots; auto-plot-on ????
-  display-labels
+display-labels
 
 end
 
