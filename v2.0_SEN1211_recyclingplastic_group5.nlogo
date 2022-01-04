@@ -26,12 +26,12 @@ breed [collection-points collection-point]
 
 families-own
 [
-  f-base-knowledge-level
   f-base-knowledge                 ; the amount of knowledge a turtle has of small bottle recycling
   f-knowledge-increase-perc
   f-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   f-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
   f-consumption-small-bottles       ; how many small bottles a turtle consumes
+  f-num-bottles
   f-small-bottle-return-perc       ; percentage of small bottles returned by turtle
   f-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
@@ -39,24 +39,24 @@ families-own
 
 couples-own
 [
-  c-base-knowledge-level
   c-base-knowledge                 ; the amount of knowledge a turtle has of small bottle recycling
   c-knowledge-increase-perc
   c-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   c-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
   c-consumption-small-bottles       ; how many small bottles a turtle consumes
+  c-num-bottles
   c-small-bottle-return-perc       ; percentage of small bottles returned by turtle
   c-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
 
 singles-own
 [
-  s-base-knowledge-level
   s-base-knowledge                 ; the amount of knowledge a turtle has of small bottle recycling
   s-knowledge-increase-perc
   s-increase-knowledge             ; increased knowledhe of small bottle recycling of a turtle
   s-acceptance-of-campaign         ; whether or not accept knowledge of recycling campaign
   s-consumption-small-bottles       ; how many small bottles a turtle consumes
+  s-num-bottles
   s-small-bottle-return-perc       ; percentage of small bottles returned by turtle
   s-increase-return-perc           ; percentage that increases depending on the turtle's knowledge
 ]
@@ -94,14 +94,8 @@ to setup
   clear-all
   ;; set global variables to appropriate consumer types
    create-families population * initial-perc-families [
-    set f-base-knowledge-level random 2 ; randomization of yes/no of acceptance,
-    if f-base-knowledge-level = 0 [
-      set f-base-knowledge 0.5
-    ]
-    if f-base-knowledge-level = 1 [
-      set f-base-knowledge 0.9
-    ]
-    set f-acceptance-of-campaign random 2
+    set f-base-knowledge ["low" "high"] ; randomization of yes/no of acceptance,
+    set f-acceptance-of-campaign ["yes" "no"]
     ;set accessibility-collection-point [0 1]
     set shape "person"
     set size 1.5
@@ -109,14 +103,8 @@ to setup
     set color green
   ]
    create-couples population * initial-perc-couples [
-    set c-base-knowledge-level random 2 ; randomization of high/ low knowledge,
-    if c-base-knowledge-level = 0 [
-      set c-base-knowledge 0.5
-    ]
-    if c-base-knowledge-level = 1 [
-      set c-base-knowledge 0.9
-    ]
-    set c-acceptance-of-campaign random 2; randomization of yes/no of acceptance
+    set c-base-knowledge ["low" "high"] ; randomization of high/ low knowledge,
+    set c-acceptance-of-campaign ["yes" "no"]; randomization of yes/no of acceptance
     ;set accessibility-collection-point [0 1]
     set shape "person"
     set size 1.2
@@ -124,14 +112,8 @@ to setup
     set color blue
   ]
    create-singles population * initial-perc-singles [
-    set s-base-knowledge random random 2  ; randomization of high/ low knowledge,
-    if s-base-knowledge-level = 0 [
-      set s-base-knowledge 0.5
-    ]
-    if s-base-knowledge-level = 1 [
-      set s-base-knowledge 0.9
-    ]
-    set s-acceptance-of-campaign random 2; randomization of yes/no of acceptance
+    set s-base-knowledge ["low" "high"] ; randomization of high/ low knowledge,
+    set s-acceptance-of-campaign ["yes" "no"]; randomization of yes/no of acceptance
     ;set accessibility-collection-point [0 1]
     set shape "person"
     set size 1
@@ -232,8 +214,6 @@ to go
       generateOutput
     ]
 
-  tick
-
 
   if ticks mod 4 = 0 [
     ask recycling-companies [
@@ -248,9 +228,9 @@ to go
   ]
 
 
-update-plots; auto-plot-on ????
+  update-plots; auto-plot-on ????
   display-labels
-
+  tick
 end
 
 to-report info ; format this however you want:
@@ -268,34 +248,44 @@ end
 
 to consume-bottles
   ask families [
-    set f-consumption-small-bottles random-float 10; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set f-consumption-small-bottles random 10 ; randomization of small bottle consumptiom, number need to be reset for data analysis
     set fam-consume lput f-consumption-small-bottles fam-consume
   ]
 
   ask couples [
-    set c-consumption-small-bottles random-float 8; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set c-consumption-small-bottles random 8 ; randomization of small bottle consumptiom, number need to be reset for data analysis
     set cpl-consume lput c-consumption-small-bottles cpl-consume
   ]
 
   ask singles [
-    set s-consumption-small-bottles random-float 10; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set s-consumption-small-bottles random 5 ; randomization of small bottle consumptiom, number need to be reset for data analysis
     set sgl-consume lput s-consumption-small-bottles sgl-consume
   ]
 end
 
 to collect-bottles  ; wolf procedure
   ask families[
-    calculate-return-bottles-families
+    let fam one-of families-here
+    if fam != nobody [
+      ask fam [
+      calculate-return-bottles-families
+  ]
   ]
 
   ask couples [
-    calculate-return-bottles-couples
+    let cpl one-of couples-here
+    if cpl != nobody [
+      calculate-return-bottles-couples
+  ]
   ]
 
   ask singles [
-    calculate-return-bottles-singles
+    let sgl one-of singles-here
+    if sgl != nobody [
+      calculate-return-bottles-singles
   ]
-
+  ]
+  ]
 end
 
 
@@ -303,22 +293,22 @@ to calculate-return-bottles-families
   ask municipalities[
     if policy-of-recycling-campaign = "yes"[
       ask families[
-        if f-acceptance-of-campaign = 1 [ ;yes
-          if f-base-knowledge-level = 0 [ ;low
-            set f-knowledge-increase-perc random-float 0.4 + 0.1
+        if f-acceptance-of-campaign = "yes" [
+          if f-base-knowledge = "low" [
+            set f-knowledge-increase-perc [0 0.4]
             set f-increase-knowledge f-base-knowledge * ( 1 + f-knowledge-increase-perc )
           ]
-          if f-base-knowledge-level = 1 [ ;high
-            set f-knowledge-increase-perc random-float 0.05
+          if f-base-knowledge = "high" [
+            set f-knowledge-increase-perc [0 0.05]
             set f-increase-knowledge f-base-knowledge * ( 1 + f-knowledge-increase-perc )
           ]
         ]
 
-       if f-acceptance-of-campaign = 0 [ ;no
+       if f-acceptance-of-campaign = "no" [
        set f-increase-knowledge f-base-knowledge
       ]
 
-    set num-return-bottles-families sum [f-consumption-small-bottles * f-increase-knowledge ] of families
+    set num-return-bottles-families sum [ f-consumption-small-bottles * f-increase-knowledge ] of families
       ]
    ]
   if policy-of-recycling-campaign = "no"[
@@ -328,24 +318,28 @@ to calculate-return-bottles-families
     ]
   ]
 
+  ask families [
+    set f-num-bottles 0
+  ]
+
 end
 
 to calculate-return-bottles-couples
   ask municipalities[
     if policy-of-recycling-campaign = "yes"[
       ask couples [
-        if c-acceptance-of-campaign = 1 [
-          if c-base-knowledge-level = 0 [
-            set c-knowledge-increase-perc random-float 0.4
+        if c-acceptance-of-campaign = "yes" [
+          if c-base-knowledge = "low" [
+            set c-knowledge-increase-perc [0 0.4]
             set c-increase-knowledge c-base-knowledge * ( 1 + c-knowledge-increase-perc )
             ]
-          if c-base-knowledge-level = 1 [
-            set c-knowledge-increase-perc random-float 0.05
+          if c-base-knowledge = "high" [
+            set c-knowledge-increase-perc [0 0.05]
             set c-increase-knowledge c-base-knowledge * ( 1 + c-knowledge-increase-perc )
             ]
         ]
 
-       if c-acceptance-of-campaign = 0 [
+       if c-acceptance-of-campaign = "no" [
           set c-increase-knowledge c-base-knowledge
           ]
        set num-return-bottles-couples sum [ c-consumption-small-bottles * c-increase-knowledge ] of couples
@@ -357,19 +351,23 @@ to calculate-return-bottles-couples
         ]
      ]
     ]
+
+  ask couples [
+    set c-num-bottles 0
+  ]
 end
 
 to calculate-return-bottles-singles
   ask municipalities [
     if policy-of-recycling-campaign = "yes"[
       ask singles [
-        if s-acceptance-of-campaign = 1 [
-          if s-base-knowledge-level = 0 [
-            set s-knowledge-increase-perc random-float 0.4
+        if s-acceptance-of-campaign = "yes" [
+          if s-base-knowledge = "low" [
+            set s-knowledge-increase-perc [0 0.4]
             set s-increase-knowledge s-base-knowledge * ( 1 + s-knowledge-increase-perc )
             ]
-          if s-base-knowledge-level = 1 [
-            set s-knowledge-increase-perc random-float 0.05
+          if s-base-knowledge = "high" [
+            set s-knowledge-increase-perc [0 0.05]
             set s-increase-knowledge s-base-knowledge * ( 1 + s-knowledge-increase-perc )
             ]
         ]
@@ -388,6 +386,9 @@ to calculate-return-bottles-singles
     ]
   ]
 
+  ask singles [
+    set s-num-bottles 0
+  ]
 end
 
 
@@ -467,11 +468,9 @@ end
 to display-labels
   ask turtles [ set label "" ]
   if show-bottles? [
-    ask families [ set label f-knowledge-increase-perc ]
-    ask couples [ set label num-return-bottles-couples ]
-    ask singles [ set label num-return-bottles-singles ]
-    ask collection-points [ set label num-collection-bottles ]
-    ask recycling-companies [ set label num-recycle-bottles ]
+    ask families [ set label round f-consumption-small-bottles ]
+    ask couples [ set label round c-consumption-small-bottles ]
+    ask singles [ set label round s-consumption-small-bottles ]
   ]
 
 end
@@ -479,8 +478,9 @@ end
 
 to generateOutput
   file-open "output.txt"
-  file-print fam-consume
+  file-print num-return-bottles
 end
+
 
 
 
@@ -633,7 +633,7 @@ INPUTBOX
 372
 599
 total-budget
-100.0
+1000.0
 1
 0
 Number
@@ -785,7 +785,7 @@ INPUTBOX
 369
 145
 max-bottles
-1.0E8
+1.0E10
 1
 0
 Number
