@@ -212,6 +212,9 @@ end
 
 to go
   ; if not any? turtles [ stop ]
+
+  if ticks >= 52 [ stop ]
+
     ask families [
       move
       consume-bottles
@@ -232,27 +235,30 @@ to go
       collect-bottles
       calculate-collection-bottles
       calculate-rate-returning
-      generateOutput
       calculate-total-collection-bottles
     ]
 
+    ask recycling-companies [
+    generateOutput]
+
   tick
 
-
-  if ticks mod 4 = 0 [
-    ask recycling-companies [
+    if ticks mod 4 = 0 [
+      ask recycling-companies [
       recycle-bottles
       calculate-recycle-bottles
       calculate-rate-recycling
       calculate-total-recycling-bottles
     ]
+
+    ;  if ticks mod 52 = 0 [
+
+
+
+  ; reset-ticks
+
+  ;]
   ]
-
-  if ticks mod 52 = 0 [
-    reset-ticks
-  ]
-
-
 update-plots; auto-plot-on ????
   display-labels
 
@@ -284,7 +290,7 @@ to consume-bottles
   ]
 
   ask singles [
-    set s-consumption-small-bottles random-float 10; randomization of small bottle consumptiom, number need to be reset for data analysis
+    set s-consumption-small-bottles random-float 5; randomization of small bottle consumptiom, number need to be reset for data analysis
     set sgl-consume lput s-consumption-small-bottles sgl-consume
   ]
 end
@@ -416,7 +422,7 @@ end
 
 to recycle-bottles
   ask recycling-companies [
-    set num-recieve-bottles num-collection-bottles * (1 - loss-rate) ;manually setup loss-rate, loss during transportation and unexpected accidents
+    set num-recieve-bottles num-collection-bottles  ;manually setup loss-rate, loss during transportation and unexpected accidents
   ]
 end
 
@@ -471,7 +477,7 @@ to calculate-rate-recycling
     if num-recycle-bottles > 0 [
       set rate-recycling total-recycle / num-consume-bottles
       ]
-  print rate-recycling
+  ;print rate-recycling
 end
 
 to display-labels
@@ -488,8 +494,8 @@ end
 
 
 to generateOutput
-  file-open "output.txt"
-  file-print fam-consume
+  file-open "output - total 50% collection.txt"
+  file-print total-recycle
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -587,8 +593,8 @@ SLIDER
 R-capacity
 R-capacity
 1
-1000000
-558001.0
+10000
+10000.0
 1000
 1
 bottles
@@ -603,7 +609,7 @@ initial-num-collection-points
 initial-num-collection-points
 1
 9
-8.0
+5.0
 1
 1
 point
@@ -617,9 +623,9 @@ SLIDER
 C-capacity
 C-capacity
 1
-1000000
-814101.0
-100
+10000
+10000.0
+1000
 1
 bottles
 HORIZONTAL
@@ -632,7 +638,7 @@ CHOOSER
 model-version
 model-version
 "yes-policy" "no-policy"
-0
+1
 
 INPUTBOX
 256
@@ -640,7 +646,7 @@ INPUTBOX
 372
 599
 total-budget
-100.0
+1000.0
 1
 0
 Number
@@ -654,7 +660,7 @@ fraction-of-campaign
 fraction-of-campaign
 0
 1.00
-0.1
+0.0
 0.01
 1
 *100 %
@@ -669,7 +675,7 @@ fraction-of-technology
 fraction-of-technology
 0
 1.00
-0.11
+0.0
 0.01
 1
 *100 %
@@ -684,7 +690,7 @@ fraction-of-collection
 fraction-of-collection
 0
 1.00
-0.41
+0.0
 0.01
 1
 *100 %
@@ -763,18 +769,6 @@ true
 "" ""
 PENS
 "total-recycle" 1.0 0 -16777216 true "" "ask recycling-companies [plot total-recycle]"
-"total-conusmption/100" 1.0 0 -6995700 true "" "plot num-consume-bottles / 100"
-
-INPUTBOX
-20
-275
-188
-335
-loss-rate
-0.0
-1
-0
-Number
 
 INPUTBOX
 252
@@ -782,7 +776,7 @@ INPUTBOX
 369
 209
 population
-10.0
+100.0
 1
 0
 Number
@@ -793,7 +787,7 @@ INPUTBOX
 369
 145
 max-bottles
-1000000.0
+10000.0
 1
 0
 Number
@@ -1235,7 +1229,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
